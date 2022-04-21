@@ -142,11 +142,84 @@ cv::Mat Gray2BinaryPlus(cv::Mat& gray, int threshold)
   return gray;
 }
 
+// Binary otsu
+cv::Mat Gray2BinaryOsta(cv::Mat& gray)
+{
+  int width = gray.cols;
+  int height = gray.rows;
+  // determine threshold
+  double w0 = 0, w1 = 0;
+  double m0 = 0, m1 = 0;
+  double max_sb = 0, sb = 0;
+  int threshold = 0;
+  int nRows = gray.rows ;
+	int nCols = gray.cols * gray.channels() ;
+	if(gray.isContinuous())
+	{
+		nCols = nRows * nCols ;
+		nRows = 1 ;
+	}
+  // Get threshold
+  for (int t = 0; t < 255; t++)
+  {
+    w0 = 0;
+    w1 = 0;
+    m0 = 0;
+    m1 = 0;
+    for(int h = 0 ; h < nRows ; ++ h)
+    {
+      uchar *ptr = gray.ptr<uchar>(h) ;
+      for(int w = 0 ; w < nCols ; ++ w)
+      {
+        if (*ptr < t)
+        {
+          w0++;
+          m0 += *ptr++;
+        } 
+        else 
+        {
+          w1++;
+          m1 += *ptr++;
+        }
+      }
+    }
+    m0 /= w0;
+    m1 /= w1;
+    w0 /= (height * width);
+    w1 /= (height * width);
+    sb = w0 * w1 * pow((m0 - m1), 2);
+    if(sb > max_sb)
+    {
+      max_sb = sb;
+      threshold = t;
+    }
+  }
+  std::cout << "threshold:" << threshold << std::endl;
+  for(int h = 0 ; h < nRows ; ++ h)
+	{
+		uchar *ptr = gray.ptr<uchar>(h) ;
+		for(int w = 0 ; w < nCols ; ++ w)
+		{
+			if(*ptr > threshold)
+      {
+        *ptr++ = 255;
+      }
+      else
+      {
+        *ptr++ = 0;
+      }
+		}
+	}
+  return gray;
+}
+
 int main()
 {
   cv::Mat img = cv::imread("test.jpg");
   std::cout << "img.step:" << img.step << " " << img.cols << " " << img.rows << std::endl;
   cv::Mat gray = Bgr2Gray(img);
+  cv::Mat gray_osta = gray.clone();
+
   TimerClock tc;
   tc.update();
   cv::Mat binary = Gray2Binary(gray, 127);
@@ -158,6 +231,13 @@ int main()
   cv::Mat binary_ = Gray2BinaryPlus(gray, 127);
   std::cout << "time_cost_:" << tc_.getTimerMicroSec() << std::endl;
   cv::imwrite("./binary_plus.jpg", binary);
+
+  TimerClock tc_osta;
+  tc_osta.update();
+  cv::Mat binary_osta = Gray2BinaryOsta(gray_osta);
+  std::cout << "time_cost_osta:" << tc_osta.getTimerMicroSec() << std::endl;
+  cv::imwrite("./binary_osta.jpg", binary_osta);
+
   return 0;
 }
 
